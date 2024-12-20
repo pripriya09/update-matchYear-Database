@@ -1,0 +1,38 @@
+post('/update-year', async (req, res) => {
+  const { oldYear, newYear } = req.body;
+
+  if (!oldYear || !newYear) {
+    return res.status(400).json({ message: 'Both oldYear and newYear are required' });
+  }
+
+  try {
+    // Update all users whose effective_date contains the oldYear
+    const result = await User.updateMany(
+      { effective_date: { $regex: oldYear } }, // Match effective_date containing oldYear
+      [
+        {
+          $set: {
+            effective_date: {
+              $concat: [
+                { $arrayElemAt: [{ $split: ["$effective_date", "/"] }, 0] }, // Extract the day
+                "/",
+                { $arrayElemAt: [{ $split: ["$effective_date", "/"] }, 1] }, // Extract the month
+                "/",
+                newYear // Replace with the new year
+              ]
+            }
+          }
+        }
+      ]
+    );
+
+    if (result.modifiedCount > 0) {
+      return res.status(200).json({ message: 'Effective dates updated successfully.', result });
+    } else {
+      return res.status(404).json({ message: 'No records found with the given year.' });
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'An error occurred while updating the year.' });
+  }
+});
